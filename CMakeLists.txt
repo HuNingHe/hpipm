@@ -33,10 +33,10 @@
 #                                                                                                 #
 ###################################################################################################
 
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.12)
 
 # installation directory ( has to be before `project()` )
-set(CMAKE_INSTALL_PREFIX "/opt/hpipm" CACHE STRING "Installation path")
+# set(CMAKE_INSTALL_PREFIX "/opt/hpipm" CACHE STRING "Installation path")
 
 project(hpipm C)
 
@@ -77,11 +77,10 @@ set(ALLOWED_REF_BLAS
 		)
 set_property(CACHE REF_BLAS PROPERTY STRINGS ${ALLOWED_REF_BLAS})
 
-set(HPIPM_TESTING ON CACHE BOOL "Tests enabled")
-# set(HPIPM_TESTING OFF CACHE BOOL "Tests disabled")
+set(HPIPM_TESTING OFF CACHE BOOL "Tests enabled")
 
 # build shared library
-set(BUILD_SHARED_LIBS OFF CACHE STRING "Build shared libraries")
+set(BUILD_SHARED_LIBS ON CACHE STRING "Build shared libraries")
 
 # Pass the allowed items up to the parent scope (if there is one)
 # This is detected by comparing the project name to the one set earlier in this file
@@ -91,44 +90,46 @@ if(NOT ${CMAKE_PROJECT_NAME} STREQUAL hpipm)
 endif()
 
 # Use CMake to automatically find BLASFEO (OFF by default -- only for use in other software packages ATM)
-set(HPIPM_FIND_BLASFEO OFF CACHE BOOL "Use CMake to find BLASFEO.")
+# set(HPIPM_FIND_BLASFEO ON CACHE BOOL "Use CMake to find BLASFEO.")
+
+find_package(ament_cmake REQUIRED)
 
 # Try to find blasfeo using CMake (also sets BLASFEO_PATH and BLASFEO_INCLUDE_DIR if found)
-if(HPIPM_FIND_BLASFEO)
-	find_package(blasfeo REQUIRED)
-endif()
+# if(HPIPM_FIND_BLASFEO)
+find_package(blasfeo REQUIRED)
+# endif()
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # BLASFEO option
-if(NOT TARGET blasfeo)
-	# manually set BLASFEO installation path
-	set(BLASFEO_PATH "/opt/blasfeo" CACHE STRING "BLASFEO installation path")
-	# match BLASFEO library type with HPIPM library type
-	if(BUILD_SHARED_LIBS MATCHES OFF)
-		set(HPIPM_BLASFEO_LIB "Static" CACHE STRING "BLASFEO library link type")
-	else()
-		set(HPIPM_BLASFEO_LIB "Shared" CACHE STRING "BLASFEO library link type")
-	endif()
-	# select correct name for BLASFEO library
-	if(HPIPM_BLASFEO_LIB STREQUAL "Static")
-		add_library(blasfeo STATIC IMPORTED)
-		if(CMAKE_C_COMPILER_ID MATCHES MSVC)
-			set_target_properties(blasfeo PROPERTIES IMPORTED_LOCATION ${BLASFEO_PATH}/lib/blasfeo.lib)
-		else()
-			set_target_properties(blasfeo PROPERTIES IMPORTED_LOCATION ${BLASFEO_PATH}/lib/libblasfeo.a)
-		endif()
-	elseif(HPIPM_BLASFEO_LIB STREQUAL "Shared")
-		add_library(blasfeo SHARED IMPORTED)
-		if(CMAKE_C_COMPILER_ID MATCHES MSVC)
-			set_target_properties(blasfeo PROPERTIES IMPORTED_LOCATION ${BLASFEO_PATH}/lib/blasfeo.dll)
-		else()
-			set_target_properties(blasfeo PROPERTIES IMPORTED_LOCATION ${BLASFEO_PATH}/lib/libblasfeo.so)
-		endif()
-	endif()
-endif()
+# if(NOT TARGET blasfeo)
+# 	# manually set BLASFEO installation path
+# 	set(BLASFEO_PATH "/opt/blasfeo" CACHE STRING "BLASFEO installation path")
+# 	# match BLASFEO library type with HPIPM library type
+# 	if(BUILD_SHARED_LIBS MATCHES OFF)
+# 		set(HPIPM_BLASFEO_LIB "Static" CACHE STRING "BLASFEO library link type")
+# 	else()
+# 		set(HPIPM_BLASFEO_LIB "Shared" CACHE STRING "BLASFEO library link type")
+# 	endif()
+# 	# select correct name for BLASFEO library
+# 	if(HPIPM_BLASFEO_LIB STREQUAL "Static")
+# 		add_library(blasfeo STATIC IMPORTED)
+# 		if(CMAKE_C_COMPILER_ID MATCHES MSVC)
+# 			set_target_properties(blasfeo PROPERTIES IMPORTED_LOCATION ${BLASFEO_PATH}/lib/blasfeo.lib)
+# 		else()
+# 			set_target_properties(blasfeo PROPERTIES IMPORTED_LOCATION ${BLASFEO_PATH}/lib/libblasfeo.a)
+# 		endif()
+# 	elseif(HPIPM_BLASFEO_LIB STREQUAL "Shared")
+# 		add_library(blasfeo SHARED IMPORTED)
+# 		if(CMAKE_C_COMPILER_ID MATCHES MSVC)
+# 			set_target_properties(blasfeo PROPERTIES IMPORTED_LOCATION ${BLASFEO_PATH}/lib/blasfeo.dll)
+# 		else()
+# 			set_target_properties(blasfeo PROPERTIES IMPORTED_LOCATION ${BLASFEO_PATH}/lib/libblasfeo.so)
+# 		endif()
+# 	endif()
+# endif()
 
 # Needed to compile examples
-set(BLASFEO_INCLUDE_DIR "${BLASFEO_PATH}/include" CACHE STRING "Path to BLASFEO header files.")
-set(HPIPM_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
+# set(BLASFEO_INCLUDE_DIR "${BLASFEO_PATH}/include" CACHE STRING "Path to BLASFEO header files.")
 
 # headers installation directory
 set(HPIPM_HEADERS_INSTALLATION_DIRECTORY "include" CACHE STRING "Headers local installation directory")
@@ -342,27 +343,25 @@ add_library(hpipm ${HPIPM_SRC})
 
 target_include_directories(hpipm
 	PUBLIC
-		$<BUILD_INTERFACE:${HPIPM_INCLUDE_DIR}>
-		$<BUILD_INTERFACE:${BLASFEO_INCLUDE_DIR}>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		# $<BUILD_INTERFACE:${BLASFEO_INCLUDE_DIR}>
 		$<INSTALL_INTERFACE:${HPIPM_HEADERS_INSTALLATION_DIRECTORY}>)
 
-target_link_libraries(hpipm blasfeo)
+# target_link_libraries(hpipm blasfeo)
+ament_target_dependencies(hpipm ament_cmake blasfeo)
 
-install(TARGETS hpipm EXPORT hpipmConfig
-	LIBRARY DESTINATION lib
-	ARCHIVE DESTINATION lib
-	RUNTIME DESTINATION bin)
+ament_export_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+ament_export_targets(${PROJECT_NAME}_Targets HAS_LIBRARY_TARGET)
+ament_export_dependencies(ament_cmake blasfeo)
 
-install(EXPORT hpipmConfig DESTINATION cmake)
+install(DIRECTORY include/ DESTINATION include)
 
-file(GLOB_RECURSE HPIPM_HEADERS "include/*.h")
-install(FILES ${HPIPM_HEADERS} DESTINATION ${HPIPM_HEADERS_INSTALLATION_DIRECTORY})
+install(
+  TARGETS ${PROJECT_NAME}
+  EXPORT ${PROJECT_NAME}_Targets
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include)  
 
-# test problems
-if(HPIPM_TESTING MATCHES ON)
-	add_subdirectory(test_problems)
-	add_subdirectory(examples/c)
-endif()
-
-message(STATUS "Using BLASFEO path: ${BLASFEO_PATH}")
-message(STATUS "Installation directory: ${CMAKE_INSTALL_PREFIX}")
+ament_package()
